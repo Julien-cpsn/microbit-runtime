@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 armv6-m = { path = "../microbit-vm/lib/armv6-m" }
 byteorder = "1.4.3"
+elfy = "0.2.2"
