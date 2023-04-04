@@ -14,29 +14,23 @@ fn main() {
         let file_path = args.get(1).unwrap();
         let elf = Elf::load(file_path).expect("Cannot open image");
 
-        let origin = elf.header().entry();
+        let mut origin = elf.header().entry();
         println!("origin: {origin}");
 
-        let text_section = elf.try_get_section(".init").expect("The section doesn't exist!");
+        let text_section = elf.try_get_section(".text").expect("The section doesn't exist!");
 
         if let SectionData::Bytes(bytes) = text_section.data() {
             for i in (0..bytes.len()).step_by(4) {
-                println!("{:#010b} {:#010b} {:#010b} {:#010b}", bytes[i+3], bytes[i+2], bytes[i+1], bytes[i])
+                println!("{}: {:#010b} {:#010b} {:#010b} {:#010b}", i, bytes[i+3], bytes[i+2], bytes[i+1], bytes[i]);
+                memory[origin] = as_u32_be(&[bytes[i], bytes[i+1], bytes[i+2], bytes[i+3]]);
+                origin += 1;
             }
         }
 
-        /*
-        let mut origin = file.read_u32::<LittleEndian>().unwrap();
-        origin = swap32(origin);
-
-        let max_read = MEMORY_MAX_ADDRESSABLE_ADDRESS as u32 - origin;
-        println!("{} - {} = {}", MEMORY_MAX_ADDRESSABLE_ADDRESS, origin, max_read);
-
-        */
-        //println!("memory pointer: {}", &p);
-        //memory[p as usize] = 0b101;
-        //println!("data at pointer: {}", &memory[p as usize]);
         println!();
+        for y in elf.header().entry()..origin {
+            println!("{}: {} ", y, memory[y])
+        }
     }
 
     // Empty all registers
@@ -72,4 +66,18 @@ fn swap32(num: u32) -> u32 {
     ((num<<8)   & 0xff0000) | // move byte 1 to byte 2
     ((num>>8)   & 0xff00)   | // move byte 2 to byte 1
     ((num<<24)  & 0xff000000)
+}
+
+fn as_u32_be(array: &[u8; 4]) -> u32 {
+    ((array[0] as u32) << 24) +
+    ((array[1] as u32) << 16) +
+    ((array[2] as u32) <<  8) +
+    ((array[3] as u32) <<  0)
+}
+
+fn as_u32_le(array: &[u8; 4]) -> u32 {
+    ((array[0] as u32) <<  0) +
+    ((array[1] as u32) <<  8) +
+    ((array[2] as u32) << 16) +
+    ((array[3] as u32) << 24)
 }
