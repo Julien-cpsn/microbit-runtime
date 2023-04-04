@@ -26,5 +26,5 @@ arm-linux-gnueabihf-gcc -mbe32 -march=armv6 -marm helloworld.c -S
 
 Disassemble program
 ```bash
-arm-linux-gnueabihf-objdump -d helloworld
+arm-linux-gnueabihf-objdump -drwC helloworld
 ```
