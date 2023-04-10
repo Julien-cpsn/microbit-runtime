@@ -1,29 +1,29 @@
 use std::fs;
-use std::fs::File;
-use std::io::{Read, stdout, Write};
+use std::io::{stdout, Write};
 use armv6_m::structure::{MAX_RAM, MAX_ROM, MEMORY_MAX_ADDRESSABLE_ADDRESS, REGISTER_COUNT, ROM_PHYSICAL_ADDRESS};
-use armv6_m::structure::ConditionFlag::PL;
-use armv6_m::structure::Register::{APSR, PC};
+use armv6_m::structure::Register::{PC};
 use elfy::Elf;
 use elfy::prelude::SectionData;
 use clap::Parser;
-use ihex::{Reader, ReaderOptions};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    /// Path of binary file to flash in memory
+    /// Path of file to flash in memory
     #[arg(short, long)]
     file: Option<String>,
 
+    /// The input file is an ELF32
     #[arg(long, action)]
     elf: bool,
 
+    /// Prints every action details, such as image loading
     #[arg(short, long, action)]
     verbose: bool,
 
+    /// Checks every reserved space and avoids trying unsafe actions
     #[arg(short, long, action)]
-    unsafe_mode: bool,
+    safe_mode: bool,
 }
 
 fn main() {
@@ -38,7 +38,7 @@ fn main() {
         nb_written_bytes = init_with_file(&mut memory, file_path, args.verbose, args.elf);
     }
     else {
-        // TODO
+        // TODO implement instruction array playground
         nb_written_bytes = 0;
     }
 
@@ -49,26 +49,54 @@ fn main() {
 
     println!("Bytes written in ROM memory: {}", nb_written_bytes);
 
-    if !args.unsafe_mode {
-        println!("Checking reserved spaces");
+    if args.safe_mode {
+        print!("Checking reserved spaces: ");
+        // CODE
         print!("Code");
         stdout().flush().ok();
-        // CODE
         for address in MAX_ROM - 1..0x10000000 {
             if memory[address as usize] != 0 {
-                panic!("Data wrote in reserved space at address {:X}", address)
+                panic!("Data wrote in reserved Code space at address {:X}", address)
             }
         }
 
+        // TODO FICR, UIRC (unknown size)
+
+        // RAM
         print!(", RAM");
         stdout().flush().ok();
-        // RAM
-        for address in 0x20000000 + MAX_RAM - 1..0x40000000 {
+        for address in 0x20000000 + MAX_RAM - 1..0x40000000_u32 {
             if memory[address as usize] != 0 {
-                panic!("Data wrote in reserved space at address {:X}", address)
+                panic!("Data wrote in reserved RAM space at address {:X}", address)
             }
         }
-        // TODO FICR, UIRC, APB Peripherals, AHB Peripherals, Private peripheral bus
+
+        // APB Peripherals
+        print!(", APB Peripherals");
+        stdout().flush().ok();
+        for address in 0x40080000 - 1..0x50000000_u32 {
+            if memory[address as usize] != 0 {
+                panic!("Data wrote in reserved APB Peripherals space at address {:X}", address)
+            }
+        }
+
+        // AHB Peripherals
+        print!(", AHB Peripherals");
+        stdout().flush().ok();
+        for address in (0x50080000 - 1..0xE0000000_u32).rev() {
+            if memory[address as usize] != 0 {
+                panic!("Data wrote in reserved AHB Peripherals space at address {:X}", address)
+            }
+        }
+
+        // Private Peripheral Bus
+        println!(", Private Peripheral Bus");
+        stdout().flush().ok();
+        for address in (0xE0100000 - 1..0xFFFFFFFF_u32).rev() {
+            if memory[address as usize] != 0 {
+                panic!("Data wrote in reserved Private Peripheral Bus space at address {:X}", address)
+            }
+        }
     }
 
     println!();
